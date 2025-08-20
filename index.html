@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue.js 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <title>Spreadsheet Reader - Vue.js</title>
+  </head>
+  <body class="bg-gray-50 min-h-screen p-5">
+    <div id="app" class="max-w-4xl mx-auto">
+      <div class="bg-white rounded-xl shadow-lg p-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-4 text-center">Apps Script = Serverless Full Stack App!</h1>
+        <h2 class="text-xl font-semibold text-gray-700 mb-6 text-center">
+          Stack: Google Apps Script + Vue.js CDN + Tailwind CSS CDN + Google Sheets as Database
+          <br>
+          <span class="text-base font-normal text-gray-500 mt-2 block">
+            Developed locally and deployed via command line (clasp)
+          </span>
+        </h2>
+        <p class="text-gray-600 mb-6 text-center">Click the button to load data from the 'page1' spreadsheet.</p>
+        
+        <!-- Load button -->
+        <div class="text-center mb-6">
+          <button 
+            @click="loadData" 
+            :disabled="loading"
+            class="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg mr-3"
+          >
+            <span v-if="loading" class="flex items-center justify-center">
+              <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+              Loading...
+            </span>
+            <span v-else>Load Spreadsheet Data</span>
+          </button>
+          
+          <button 
+            @click="showAddModal = true" 
+            class="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg"
+          >
+            ➕ Add New
+          </button>
+        </div>
+
+        <!-- Status messages -->
+        <div v-if="message" class="mb-6">
+          <div 
+            :class="[
+              'px-4 py-3 rounded-lg border',
+              message.type === 'success' ? 'bg-green-50 border-green-200 text-green-700' : '',
+              message.type === 'error' ? 'bg-red-50 border-red-200 text-red-700' : '',
+              message.type === 'info' ? 'bg-blue-50 border-blue-200 text-blue-700' : ''
+            ]"
+          >
+            <strong>{{ message.title }}:</strong> {{ message.text }}
+          </div>
+        </div>
+
+        <!-- Statistics -->
+        <div v-if="data.length > 0" class="mb-6">
+          <div class="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
+            <strong>Total records:</strong> {{ data.length }}
+          </div>
+        </div>
+
+        <!-- Data table -->
+        <div v-if="data.length > 0" class="overflow-x-auto">
+          <table class="min-w-full bg-white border border-gray-200 rounded-lg shadow-sm">
+            <thead class="bg-blue-500 text-white">
+              <tr>
+                <th class="px-6 py-3 text-left text-sm font-semibold uppercase tracking-wider">ID</th>
+                <th class="px-6 py-3 text-left text-sm font-semibold uppercase tracking-wider">Country</th>
+                <th class="px-6 py-3 text-left text-sm font-semibold uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              <tr 
+                v-for="(row, index) in data" 
+                :key="row.rowIndex"
+                :class="[
+                  index % 2 === 0 ? 'bg-white' : 'bg-gray-50',
+                  'hover:bg-blue-50 transition-colors duration-150'
+                ]"
+              >
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                  {{ row.id }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  {{ row.country }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                  <button 
+                    @click="editRow(row)"
+                    class="text-blue-600 hover:text-blue-800 mr-2"
+                    title="Edit"
+                  >
+                    ✏️
+                  </button>
+                  <button 
+                    @click="deleteRowFromSheet(row, index)"
+                    class="text-red-600 hover:text-red-800"
+                    title="Delete"
+                  >
+                    🗑️
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Message when no data -->
+        <div v-else-if="!loading && !message" class="text-gray-500 text-center py-8">
+          <p class="text-lg">No data found in the spreadsheet.</p>
+        </div>
+
+        <!-- Edit modal -->
+        <div v-if="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div class="bg-white rounded-lg p-6 w-96">
+            <h3 class="text-lg font-semibold mb-4">Edit Record</h3>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">ID</label>
+                <input 
+                  v-model="editingRow.id" 
+                  type="text" 
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                <input 
+                  v-model="editingRow.country" 
+                  type="text" 
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+              </div>
+            </div>
+            <div class="flex justify-end space-x-3 mt-6">
+              <button 
+                @click="cancelEdit"
+                class="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button 
+                @click="saveEditToSheet"
+                class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add modal -->
+        <div v-if="showAddModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div class="bg-white rounded-lg p-6 w-96">
+            <h3 class="text-lg font-semibold mb-4">Add New Record</h3>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">ID</label>
+                <input 
+                  v-model="newRow.id" 
+                  type="text" 
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter ID"
+                >
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                <input 
+                  v-model="newRow.country" 
+                  type="text" 
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter country name"
+                >
+              </div>
+            </div>
+            <div class="flex justify-end space-x-3 mt-6">
+              <button 
+                @click="cancelAdd"
+                class="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button 
+                @click="addRowToSheet"
+                class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const { createApp, ref, reactive } = Vue;
+
+      createApp({
+        setup() {
+          // Reactive state
+          const loading = ref(false);
+          const data = ref([]);
+          const message = ref(null);
+          const showEditModal = ref(false);
+          const showAddModal = ref(false);
+          const editingRow = reactive({ id: '', country: '', rowIndex: 0 });
+          const newRow = reactive({ id: '', country: '' });
+          const editingIndex = ref(-1);
+
+          // Function to load data
+          const loadData = async () => {
+            loading.value = true;
+            message.value = null;
+
+            try {
+              // Simulates async call to Google Apps Script
+              const response = await new Promise((resolve, reject) => {
+                google.script.run
+                  .withSuccessHandler(resolve)
+                  .withFailureHandler(reject)
+                  .getServerMessage();
+              });
+
+              if (response.error) {
+                message.value = {
+                  type: 'error',
+                  title: 'Error',
+                  text: response.error
+                };
+                return;
+              }
+
+              if (response.success && response.data) {
+                data.value = response.data;
+                message.value = {
+                  type: 'success',
+                  title: 'Success',
+                  text: `Data loaded successfully! ${response.count} records found.`
+                };
+              } else {
+                message.value = {
+                  type: 'error',
+                  title: 'Error',
+                  text: 'Unexpected server response'
+                };
+              }
+            } catch (error) {
+              message.value = {
+                type: 'error',
+                title: 'Error',
+                text: `An error occurred: ${error.message}`
+              };
+            } finally {
+              loading.value = false;
+            }
+          };
+
+          // Function to edit row
+          const editRow = (row) => {
+            editingRow.id = row.id;
+            editingRow.country = row.country;
+            editingRow.rowIndex = row.rowIndex;
+            editingIndex.value = data.value.indexOf(row);
+            showEditModal.value = true;
+          };
+
+          // Function to cancel edit
+          const cancelEdit = () => {
+            showEditModal.value = false;
+            editingIndex.value = -1;
+          };
+
+          // Function to save edit to spreadsheet
+          const saveEditToSheet = async () => {
+            try {
+              const response = await new Promise((resolve, reject) => {
+                google.script.run
+                  .withSuccessHandler(resolve)
+                  .withFailureHandler(reject)
+                  .updateRow(editingRow.rowIndex, editingRow.id, editingRow.country);
+              });
+
+              if (response.error) {
+                message.value = {
+                  type: 'error',
+                  title: 'Error',
+                  text: response.error
+                };
+                return;
+              }
+
+              if (response.success) {
+                // Update local data
+                if (editingIndex.value >= 0) {
+                  data.value[editingIndex.value] = { ...editingRow };
+                }
+                
+                message.value = {
+                  type: 'success',
+                  title: 'Success',
+                  text: response.message
+                };
+                
+                cancelEdit();
+              }
+            } catch (error) {
+              message.value = {
+                type: 'error',
+                title: 'Error',
+                text: `Error saving: ${error.message}`
+              };
+            }
+          };
+
+          // Function to delete row from spreadsheet
+          const deleteRowFromSheet = async (row, index) => {
+            if (confirm(`Are you sure you want to delete the record "${row.id} - ${row.country}"?`)) {
+              try {
+                const response = await new Promise((resolve, reject) => {
+                  google.script.run
+                    .withSuccessHandler(resolve)
+                    .withFailureHandler(reject)
+                    .deleteRow(row.rowIndex);
+                });
+
+                if (response.error) {
+                  message.value = {
+                    type: 'error',
+                    title: 'Error',
+                    text: response.error
+                  };
+                  return;
+                }
+
+                if (response.success) {
+                  // Remove from local list
+                  data.value.splice(index, 1);
+                  message.value = {
+                    type: 'success',
+                    title: 'Success',
+                    text: response.message
+                  };
+                }
+              } catch (error) {
+                message.value = {
+                  type: 'error',
+                  title: 'Error',
+                  text: `Error deleting: ${error.message}`
+                };
+              }
+            }
+          };
+
+          // Function to cancel add
+          const cancelAdd = () => {
+            showAddModal.value = false;
+            newRow.id = '';
+            newRow.country = '';
+          };
+
+          // Function to add new row to spreadsheet
+          const addRowToSheet = async () => {
+            if (!newRow.id || !newRow.country) {
+              message.value = {
+                type: 'error',
+                title: 'Error',
+                text: 'Please fill in all fields'
+              };
+              return;
+            }
+
+            try {
+              const response = await new Promise((resolve, reject) => {
+                google.script.run
+                  .withSuccessHandler(resolve)
+                  .withFailureHandler(reject)
+                  .addRow(newRow.id, newRow.country);
+              });
+
+              if (response.error) {
+                message.value = {
+                  type: 'error',
+                  title: 'Error',
+                  text: response.error
+                };
+                return;
+              }
+
+              if (response.success) {
+                // Add to local list
+                data.value.push({
+                  id: newRow.id,
+                  country: newRow.country,
+                  rowIndex: response.newRowIndex
+                });
+                
+                message.value = {
+                  type: 'success',
+                  title: 'Success',
+                  text: response.message
+                };
+                
+                cancelAdd();
+              }
+            } catch (error) {
+              message.value = {
+                type: 'error',
+                title: 'Error',
+                text: `Error adding: ${error.message}`
+              };
+            }
+          };
+
+          // Clear message after 5 seconds
+          const clearMessage = () => {
+            if (message.value) {
+              setTimeout(() => {
+                message.value = null;
+              }, 5000);
+            }
+          };
+
+          // Watch for message changes
+          Vue.watch(message, clearMessage);
+
+          return {
+            loading,
+            data,
+            message,
+            showEditModal,
+            showAddModal,
+            editingRow,
+            newRow,
+            loadData,
+            editRow,
+            cancelEdit,
+            saveEditToSheet,
+            deleteRowFromSheet,
+            cancelAdd,
+            addRowToSheet
+          };
+        }
+      }).mount('#app');
+    </script>
+  </body>
+</html>
