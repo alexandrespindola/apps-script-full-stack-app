@@ -4,7 +4,7 @@
  */
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('index')
-    .setTitle('Spreadsheet Reader - Vue.js')
+    .setTitle('Spreadsheet Reader - Alpine.js + HTMX')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 

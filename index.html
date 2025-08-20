@@ -4,16 +4,18 @@
     <base target="_top">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Vue.js 3 CDN -->
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <title>Spreadsheet Reader - Vue.js</title>
+    <!-- Alpine.js CDN -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- HTMX CDN -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <title>Spreadsheet Reader - Alpine.js + HTMX</title>
   </head>
   <body class="bg-gray-50 min-h-screen p-5">
-    <div id="app" class="max-w-4xl mx-auto">
+    <div x-data="spreadsheetApp()" class="max-w-4xl mx-auto">
       <div class="bg-white rounded-xl shadow-lg p-8">
         <h1 class="text-3xl font-bold text-gray-800 mb-4 text-center">Apps Script = Serverless Full Stack App!</h1>
         <h2 class="text-xl font-semibold text-gray-700 mb-6 text-center">
-          Stack: Google Apps Script + Vue.js CDN + Tailwind CSS CDN + Google Sheets as Database
+          Stack: Google Apps Script + Alpine.js CDN + HTMX CDN + Tailwind CSS CDN + Google Sheets as Database
           <br>
           <span class="text-base font-normal text-gray-500 mt-2 block">
             Developed locally and deployed via command line (clasp)
@@ -24,15 +26,15 @@
         <!-- Load button -->
         <div class="text-center mb-6">
           <button 
-            @click="loadData" 
+            @click="loadData()" 
             :disabled="loading"
             class="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg mr-3"
           >
-            <span v-if="loading" class="flex items-center justify-center">
+            <span x-show="loading" class="flex items-center justify-center">
               <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
               Loading...
             </span>
-            <span v-else>Load Spreadsheet Data</span>
+            <span x-show="!loading">Load Spreadsheet Data</span>
           </button>
           
           <button 
@@ -44,7 +46,7 @@
         </div>
 
         <!-- Status messages -->
-        <div v-if="message" class="mb-6">
+        <div x-show="message" class="mb-6">
           <div 
             :class="[
               'px-4 py-3 rounded-lg border',
@@ -53,19 +55,19 @@
               message.type === 'info' ? 'bg-blue-50 border-blue-200 text-blue-700' : ''
             ]"
           >
-            <strong>{{ message.title }}:</strong> {{ message.text }}
+            <strong x-text="message.title"></strong>: <span x-text="message.text"></span>
           </div>
         </div>
 
         <!-- Statistics -->
-        <div v-if="data.length > 0" class="mb-6">
+        <div x-show="data.length > 0" class="mb-6">
           <div class="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
-            <strong>Total records:</strong> {{ data.length }}
+            <strong>Total records:</strong> <span x-text="data.length"></span>
           </div>
         </div>
 
         <!-- Data table -->
-        <div v-if="data.length > 0" class="overflow-x-auto">
+        <div x-show="data.length > 0" class="overflow-x-auto">
           <table class="min-w-full bg-white border border-gray-200 rounded-lg shadow-sm">
             <thead class="bg-blue-500 text-white">
               <tr>
@@ -75,55 +77,51 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
-              <tr 
-                v-for="(row, index) in data" 
-                :key="row.rowIndex"
-                :class="[
-                  index % 2 === 0 ? 'bg-white' : 'bg-gray-50',
-                  'hover:bg-blue-50 transition-colors duration-150'
-                ]"
-              >
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                  {{ row.id }}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                  {{ row.country }}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm">
-                  <button 
-                    @click="editRow(row)"
-                    class="text-blue-600 hover:text-blue-800 mr-2"
-                    title="Edit"
-                  >
-                    ✏️
-                  </button>
-                  <button 
-                    @click="deleteRowFromSheet(row, index)"
-                    class="text-red-600 hover:text-red-800"
-                    title="Delete"
-                  >
-                    🗑️
-                  </button>
-                </td>
-              </tr>
+              <template x-for="(row, index) in data" :key="row.rowIndex">
+                <tr 
+                  :class="[
+                    index % 2 === 0 ? 'bg-white' : 'bg-gray-50',
+                    'hover:bg-blue-50 transition-colors duration-150'
+                  ]"
+                >
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium" x-text="row.id"></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700" x-text="row.country"></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm">
+                    <button 
+                      @click="editRow(row)"
+                      class="text-blue-600 hover:text-blue-800 mr-2"
+                      title="Edit"
+                    >
+                      ✏️
+                    </button>
+                    <button 
+                      @click="deleteRowFromSheet(row, index)"
+                      class="text-red-600 hover:text-red-800"
+                      title="Delete"
+                    >
+                      🗑️
+                    </button>
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
 
         <!-- Message when no data -->
-        <div v-else-if="!loading && !message" class="text-gray-500 text-center py-8">
+        <div x-show="!loading && !message && data.length === 0" class="text-gray-500 text-center py-8">
           <p class="text-lg">No data found in the spreadsheet.</p>
         </div>
 
         <!-- Edit modal -->
-        <div v-if="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div x-show="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div class="bg-white rounded-lg p-6 w-96">
             <h3 class="text-lg font-semibold mb-4">Edit Record</h3>
             <div class="space-y-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">ID</label>
                 <input 
-                  v-model="editingRow.id" 
+                  x-model="editingRow.id" 
                   type="text" 
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
@@ -131,7 +129,7 @@
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
                 <input 
-                  v-model="editingRow.country" 
+                  x-model="editingRow.country" 
                   type="text" 
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
@@ -139,13 +137,13 @@
             </div>
             <div class="flex justify-end space-x-3 mt-6">
               <button 
-                @click="cancelEdit"
+                @click="cancelEdit()"
                 class="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button 
-                @click="saveEditToSheet"
+                @click="saveEditToSheet()"
                 class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
               >
                 Save
@@ -155,14 +153,14 @@
         </div>
 
         <!-- Add modal -->
-        <div v-if="showAddModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div x-show="showAddModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div class="bg-white rounded-lg p-6 w-96">
             <h3 class="text-lg font-semibold mb-4">Add New Record</h3>
             <div class="space-y-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">ID</label>
                 <input 
-                  v-model="newRow.id" 
+                  x-model="newRow.id" 
                   type="text" 
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter ID"
@@ -171,7 +169,7 @@
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
                 <input 
-                  v-model="newRow.country" 
+                  x-model="newRow.country" 
                   type="text" 
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Enter country name"
@@ -180,13 +178,13 @@
             </div>
             <div class="flex justify-end space-x-3 mt-6">
               <button 
-                @click="cancelAdd"
+                @click="cancelAdd()"
                 class="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button 
-                @click="addRowToSheet"
+                @click="addRowToSheet()"
                 class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
               >
                 Add
@@ -198,24 +196,22 @@
     </div>
 
     <script>
-      const { createApp, ref, reactive } = Vue;
-
-      createApp({
-        setup() {
+      function spreadsheetApp() {
+        return {
           // Reactive state
-          const loading = ref(false);
-          const data = ref([]);
-          const message = ref(null);
-          const showEditModal = ref(false);
-          const showAddModal = ref(false);
-          const editingRow = reactive({ id: '', country: '', rowIndex: 0 });
-          const newRow = reactive({ id: '', country: '' });
-          const editingIndex = ref(-1);
+          loading: false,
+          data: [],
+          message: null,
+          showEditModal: false,
+          showAddModal: false,
+          editingRow: { id: '', country: '', rowIndex: 0 },
+          newRow: { id: '', country: '' },
+          editingIndex: -1,
 
           // Function to load data
-          const loadData = async () => {
-            loading.value = true;
-            message.value = null;
+          async loadData() {
+            this.loading = true;
+            this.message = null;
 
             try {
               // Simulates async call to Google Apps Script
@@ -227,7 +223,7 @@
               });
 
               if (response.error) {
-                message.value = {
+                this.message = {
                   type: 'error',
                   title: 'Error',
                   text: response.error
@@ -236,57 +232,57 @@
               }
 
               if (response.success && response.data) {
-                data.value = response.data;
-                message.value = {
+                this.data = response.data;
+                this.message = {
                   type: 'success',
                   title: 'Success',
                   text: `Data loaded successfully! ${response.count} records found.`
                 };
               } else {
-                message.value = {
+                this.message = {
                   type: 'error',
                   title: 'Error',
                   text: 'Unexpected server response'
                 };
               }
             } catch (error) {
-              message.value = {
+              this.message = {
                 type: 'error',
                 title: 'Error',
                 text: `An error occurred: ${error.message}`
               };
             } finally {
-              loading.value = false;
+              this.loading = false;
             }
-          };
+          },
 
           // Function to edit row
-          const editRow = (row) => {
-            editingRow.id = row.id;
-            editingRow.country = row.country;
-            editingRow.rowIndex = row.rowIndex;
-            editingIndex.value = data.value.indexOf(row);
-            showEditModal.value = true;
-          };
+          editRow(row) {
+            this.editingRow.id = row.id;
+            this.editingRow.country = row.country;
+            this.editingRow.rowIndex = row.rowIndex;
+            this.editingIndex = this.data.indexOf(row);
+            this.showEditModal = true;
+          },
 
           // Function to cancel edit
-          const cancelEdit = () => {
-            showEditModal.value = false;
-            editingIndex.value = -1;
-          };
+          cancelEdit() {
+            this.showEditModal = false;
+            this.editingIndex = -1;
+          },
 
           // Function to save edit to spreadsheet
-          const saveEditToSheet = async () => {
+          async saveEditToSheet() {
             try {
               const response = await new Promise((resolve, reject) => {
                 google.script.run
                   .withSuccessHandler(resolve)
                   .withFailureHandler(reject)
-                  .updateRow(editingRow.rowIndex, editingRow.id, editingRow.country);
+                  .updateRow(this.editingRow.rowIndex, this.editingRow.id, this.editingRow.country);
               });
 
               if (response.error) {
-                message.value = {
+                this.message = {
                   type: 'error',
                   title: 'Error',
                   text: response.error
@@ -296,29 +292,29 @@
 
               if (response.success) {
                 // Update local data
-                if (editingIndex.value >= 0) {
-                  data.value[editingIndex.value] = { ...editingRow };
+                if (this.editingIndex >= 0) {
+                  this.data[this.editingIndex] = { ...this.editingRow };
                 }
                 
-                message.value = {
+                this.message = {
                   type: 'success',
                   title: 'Success',
                   text: response.message
                 };
                 
-                cancelEdit();
+                this.cancelEdit();
               }
             } catch (error) {
-              message.value = {
+              this.message = {
                 type: 'error',
                 title: 'Error',
                 text: `Error saving: ${error.message}`
               };
             }
-          };
+          },
 
           // Function to delete row from spreadsheet
-          const deleteRowFromSheet = async (row, index) => {
+          async deleteRowFromSheet(row, index) {
             if (confirm(`Are you sure you want to delete the record "${row.id} - ${row.country}"?`)) {
               try {
                 const response = await new Promise((resolve, reject) => {
@@ -329,7 +325,7 @@
                 });
 
                 if (response.error) {
-                  message.value = {
+                  this.message = {
                     type: 'error',
                     title: 'Error',
                     text: response.error
@@ -339,34 +335,34 @@
 
                 if (response.success) {
                   // Remove from local list
-                  data.value.splice(index, 1);
-                  message.value = {
+                  this.data.splice(index, 1);
+                  this.message = {
                     type: 'success',
                     title: 'Success',
                     text: response.message
                   };
                 }
               } catch (error) {
-                message.value = {
+                this.message = {
                   type: 'error',
                   title: 'Error',
                   text: `Error deleting: ${error.message}`
                 };
               }
             }
-          };
+          },
 
           // Function to cancel add
-          const cancelAdd = () => {
-            showAddModal.value = false;
-            newRow.id = '';
-            newRow.country = '';
-          };
+          cancelAdd() {
+            this.showAddModal = false;
+            this.newRow.id = '';
+            this.newRow.country = '';
+          },
 
           // Function to add new row to spreadsheet
-          const addRowToSheet = async () => {
-            if (!newRow.id || !newRow.country) {
-              message.value = {
+          async addRowToSheet() {
+            if (!this.newRow.id || !this.newRow.country) {
+              this.message = {
                 type: 'error',
                 title: 'Error',
                 text: 'Please fill in all fields'
@@ -379,11 +375,11 @@
                 google.script.run
                   .withSuccessHandler(resolve)
                   .withFailureHandler(reject)
-                  .addRow(newRow.id, newRow.country);
+                  .addRow(this.newRow.id, this.newRow.country);
               });
 
               if (response.error) {
-                message.value = {
+                this.message = {
                   type: 'error',
                   title: 'Error',
                   text: response.error
@@ -393,59 +389,44 @@
 
               if (response.success) {
                 // Add to local list
-                data.value.push({
-                  id: newRow.id,
-                  country: newRow.country,
+                this.data.push({
+                  id: this.newRow.id,
+                  country: this.newRow.country,
                   rowIndex: response.newRowIndex
                 });
                 
-                message.value = {
+                this.message = {
                   type: 'success',
                   title: 'Success',
                   text: response.message
                 };
                 
-                cancelAdd();
+                this.cancelAdd();
               }
             } catch (error) {
-              message.value = {
+              this.message = {
                 type: 'error',
                 title: 'Error',
                 text: `Error adding: ${error.message}`
               };
             }
-          };
+          },
 
           // Clear message after 5 seconds
-          const clearMessage = () => {
-            if (message.value) {
+          clearMessage() {
+            if (this.message) {
               setTimeout(() => {
-                message.value = null;
+                this.message = null;
               }, 5000);
             }
-          };
+          },
 
           // Watch for message changes
-          Vue.watch(message, clearMessage);
-
-          return {
-            loading,
-            data,
-            message,
-            showEditModal,
-            showAddModal,
-            editingRow,
-            newRow,
-            loadData,
-            editRow,
-            cancelEdit,
-            saveEditToSheet,
-            deleteRowFromSheet,
-            cancelAdd,
-            addRowToSheet
-          };
+          init() {
+            this.$watch('message', () => this.clearMessage());
+          }
         }
-      }).mount('#app');
+      }
     </script>
   </body>
 </html>
